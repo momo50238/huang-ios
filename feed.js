@@ -3,9 +3,11 @@ import { filterAds } from './hls.js'
 
 const $ = id => document.getElementById(id)
 const app = document.querySelector('.app')
+const playbackSurface = document.querySelector('.screen')
 const video = $('video')
 const fullscreenButton = $('toggle-fullscreen')
 const cleanButton = $('toggle-clean')
+const skipForwardButton = $('skip-forward')
 const categoryPicker = $('library-categories')
 const streamPicker = $('stream')
 const nativeHls = Boolean(video.canPlayType('application/vnd.apple.mpegurl'))
@@ -103,6 +105,7 @@ function updateViewMode() {
   app.classList.toggle('is-cinema', cleanMode || fullscreen)
   app.classList.toggle('is-fullscreen', fullscreen)
   app.classList.toggle('is-immersive', fullscreenMode === 'immersive')
+  playbackSurface.classList.toggle('has-progress', Boolean(playing))
   $('view-tools').hidden = !playing && !cleanMode && !fullscreen
   cleanButton.setAttribute('aria-pressed', String(cleanMode))
   cleanButton.textContent = cleanMode ? '恢复界面' : '清屏'
@@ -110,6 +113,20 @@ function updateViewMode() {
   fullscreenButton.disabled = !playing && !fullscreen
   fullscreenButton.setAttribute('aria-pressed', String(fullscreen))
   fullscreenButton.textContent = fullscreen ? '退出全屏' : '全屏'
+  updateSeekControls()
+}
+
+function canSeek() {
+  return Boolean(playing) && Number.isFinite(video.duration) && video.duration > 0
+}
+
+function updateSeekControls() {
+  skipForwardButton.disabled = !canSeek()
+}
+
+function seekTo(position) {
+  if (!canSeek()) return
+  video.currentTime = Math.max(0, Math.min(position, video.duration))
 }
 
 function setFullscreen(mode) {
@@ -567,6 +584,7 @@ $('toggle-play').onclick = () => {
 }
 cleanButton.onclick = () => { cleanMode = !cleanMode; updateViewMode() }
 fullscreenButton.onclick = toggleFullscreen
+skipForwardButton.onclick = () => seekTo(video.currentTime + 10)
 document.addEventListener('fullscreenchange', syncDocumentFullscreen)
 document.addEventListener('webkitfullscreenchange', syncDocumentFullscreen)
 video.addEventListener('webkitbeginfullscreen', () => setFullscreen('native'))
@@ -577,15 +595,14 @@ video.addEventListener('error', () => { if (playing) playbackFailed(playing) })
 video.addEventListener('timeupdate', () => {
   if (Number.isFinite(video.duration) && video.duration > 0) $('progress').value = String(1000 * video.currentTime / video.duration)
 })
-$('progress').oninput = () => {
-  if (Number.isFinite(video.duration)) video.currentTime = Number($('progress').value) * video.duration / 1000
-}
+video.addEventListener('loadedmetadata', updateSeekControls)
+video.addEventListener('durationchange', updateSeekControls)
+$('progress').oninput = () => seekTo(Number($('progress').value) * video.duration / 1000)
 video.addEventListener('ended', () => {
   const index = detail?.episodes.findIndex(item => item.id === episode?.id) ?? -1
   const next = index < 0 ? null : detail.episodes.slice(index + 1).find(item => !item.locked)
   if (next) selectEpisode(next.id)
 })
-const playbackSurface = document.querySelector('.screen')
 playbackSurface.addEventListener('touchstart', event => {
   if (event.touches.length !== 1 || event.target.closest('input,aside,header,.episode-bar,.status')) return
   const point = event.touches[0]
@@ -618,6 +635,7 @@ document.addEventListener('keydown', event => {
   if (event.target.closest?.('input,select,button') || !$('overlay').hidden) return
   if (event.key === 'ArrowDown') move(1)
   if (event.key === 'ArrowUp') move(-1)
+  if (event.key === 'ArrowRight' && canSeek()) seekTo(video.currentTime + 10)
 })
 if (consent) enter()
 if (nativeHls && !globalThis.Hls?.isSupported()) {

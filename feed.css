@@ -27,6 +27,7 @@ video{object-fit:contain;background:#0a0b09}
 .app.is-fullscreen #toggle-clean{display:none}
 .app.is-immersive{position:fixed;inset:0;z-index:7;height:100vh;height:100dvh}
 .app.is-immersive .top{left:max(var(--side),env(safe-area-inset-left));right:max(var(--side),env(safe-area-inset-right))}
+@media(max-width:380px){.top{left:12px;right:12px}.top nav{gap:2px}.top nav button{padding-inline:4px;font-size:13px}.top-tools,.view-tools{gap:1px}.view-tools button{padding-inline:4px}}
 .search-button{width:44px;height:44px;display:grid;place-items:center}
 .search-icon{border:2px solid currentColor;width:15px;height:15px;position:relative;border-radius:50%;margin:-3px 3px 0 0}
 .search-icon:after{content:"";width:8px;height:2px;background:currentColor;position:absolute;right:-6px;bottom:-3px;transform:rotate(45deg);border-radius:5px}
@@ -50,7 +51,9 @@ video{object-fit:contain;background:#0a0b09}
 .info #summary{color:#e3ead9;margin-top:8px;font-size:12px;line-height:1.5;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .episode-bar{position:absolute;bottom:12px;left:var(--side);right:var(--side);display:flex;align-items:center;justify-content:space-between;gap:12px;background:#1c251ce0;border:1px solid #d0e8a140;border-radius:11px;padding:10px 13px;text-align:left;min-height:42px;font-size:12px}
 .episode-bar span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.progress{position:absolute;bottom:0;left:var(--side);width:calc(100% - var(--side) - var(--side));margin:0;accent-color:var(--accent);height:12px;touch-action:none}
+.progress{position:absolute;bottom:0;left:var(--side);width:calc(100% - var(--side) - var(--side));margin:0;accent-color:var(--accent);height:26px;touch-action:none}
+.screen.has-progress .episode-bar{bottom:26px}
+.screen.has-progress :is(.info,.actions){margin-bottom:14px}
 .bottom{display:grid;grid-template-columns:repeat(3,1fr);padding:5px 8px max(6px,env(safe-area-inset-bottom));border-top:1px solid #30382b}
 .bottom button{display:grid;justify-items:center;align-content:center;gap:1px;min-height:45px;color:#aab4a2;font-size:11px;font-weight:650}
 .bottom button span{font-size:19px;line-height:1.05}
