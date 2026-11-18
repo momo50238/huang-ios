@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111410">
+  <title>黄果 · 短剧</title>
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https:; img-src 'self' https: blob:; media-src https: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="icon" href="./apple-touch-icon.png">
+  <link rel="stylesheet" href="./feed.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js" defer></script>
+  <script type="module" src="./feed.js"></script>
+</head>
+<body>
+  <main class="app">
+    <section class="screen" aria-label="短剧播放">
+      <img id="poster" class="poster" alt="" hidden>
+      <video id="video" playsinline preload="metadata" hidden></video>
+      <div class="shade" aria-hidden="true"></div>
+      <header class="top">
+        <nav id="sources" aria-label="推荐栏目">
+          <button type="button" data-source="rank:recommend" aria-pressed="true">推荐</button>
+          <button type="button" data-source="rank:hot" aria-pressed="false">热播</button>
+          <button type="button" data-source="latest" aria-pressed="false">上新</button>
+        </nav>
+        <button class="search-button" id="search-button" type="button" aria-label="搜索"><span class="search-icon" aria-hidden="true"></span></button>
+      </header>
+      <button id="toggle-play" class="player-surface" type="button" aria-label="播放或暂停" hidden><span id="play-mark" hidden aria-hidden="true">▶</span></button>
+      <section class="status" id="status" aria-live="polite">
+        <button class="brand-mark" aria-hidden="true" tabindex="-1" disabled>▶</button>
+        <h1>黄果短剧</h1>
+        <p id="status-text">此播放源包含成人内容。</p>
+        <button id="status-action" type="button">我已满 18 岁，继续</button>
+      </section>
+      <aside class="actions" id="actions" aria-label="播放操作" hidden>
+        <button id="favorite" type="button" aria-pressed="false"><span aria-hidden="true">☆</span>收藏</button>
+        <button id="episodes" type="button"><span aria-hidden="true">▤</span>选集</button>
+        <button id="share" type="button"><span aria-hidden="true">↗</span>分享</button>
+        <button id="mute" type="button" aria-pressed="true"><span aria-hidden="true">♪</span><b>静音</b></button>
+      </aside>
+      <div class="info" id="info" hidden>
+        <p class="source">黄果短剧</p>
+        <h1 id="title"></h1>
+        <p id="summary"></p>
+      </div>
+      <button class="episode-bar" id="episode-bar" type="button" hidden><span id="episode-label"></span><span aria-hidden="true">›</span></button>
+      <input id="progress" class="progress" type="range" min="0" max="1000" value="0" aria-label="播放进度" hidden>
+    </section>
+    <nav class="bottom" aria-label="主导航">
+      <button id="feed-button" type="button" aria-current="page"><span aria-hidden="true">▸</span>刷剧</button>
+      <button id="library-button" type="button"><span aria-hidden="true">▦</span>片库</button>
+      <button id="saved-button" type="button"><span aria-hidden="true">☆</span>收藏</button>
+    </nav>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </main>
+  <div class="overlay" id="overlay" hidden>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <header><h2 id="sheet-title"></h2><button id="close" type="button" aria-label="关闭">×</button></header>
+      <form id="search-form" hidden><input id="search" type="search" maxlength="100" placeholder="输入短剧名称" aria-label="短剧名称"><button type="submit">搜索</button></form>
+      <label id="stream-label" class="option" hidden>播放线路<select id="stream"></select></label>
+      <label id="filter-label" class="option" hidden>过滤有标记的 HLS 广告<input id="filter" type="checkbox" checked></label>
+      <div id="results" class="results"></div>
+      <button id="more" type="button" hidden>加载更多</button>
+    </section>
+  </div>
+</body>
+</html>
