@@ -4,7 +4,7 @@
 
 在支持 hls.js 的浏览器中，可以过滤点播 HLS 清单中明确标记的广告。回退到系统 HLS 播放时，播放继续，广告标记过滤停用。剪进视频中的广告没有可供过滤的清单标记。
 
-iPhone 安装包可在 GitHub Releases 下载，支持 arm64 和 iOS 15 以上系统。IPA 为未签名构建，安装前需用适用的 Apple 签名和描述文件签名。它打开本仓库的 GitHub Pages 播放器，播放需要互联网连接。
+[下载 iPhone 安装包](downloads/Huangguo-1.0.3-unsigned.ipa)，支持 arm64 和 iOS 15 以上系统。IPA 为未签名构建，安装前需用适用的 Apple 签名和描述文件签名。它打开本仓库的 GitHub Pages 播放器，播放需要互联网连接。
 
 ## 构建 IPA
 
