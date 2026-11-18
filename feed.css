@@ -16,6 +16,17 @@ video{object-fit:contain;background:#0a0b09}
 .top nav button{padding:12px 7px;font-size:14px;min-height:44px;color:#eff3e5b0;position:relative;font-weight:670}
 .top nav button[aria-pressed=true]{color:var(--accent)}
 .top nav button[aria-pressed=true]:after{position:absolute;content:"";height:3px;width:14px;left:50%;bottom:3px;transform:translateX(-50%);background:var(--accent);border-radius:8px}
+.top-tools,.view-tools{display:flex;align-items:center;gap:3px}
+.view-tools button{min-width:44px;min-height:44px;padding:0 7px;font-size:12px;font-weight:650;white-space:nowrap;text-shadow:0 1px 6px #000}
+.view-tools button[aria-pressed=true]{color:var(--accent)}
+.view-tools button:disabled{opacity:.55;cursor:default}
+.app.is-cinema :is(#sources,#search-button,.shade,.info,.actions,.episode-bar,.progress,.bottom){display:none}
+.app.is-cinema .top{justify-content:flex-end}
+.app.is-cinema .view-tools{padding:0 3px;border-radius:16px;background:#0b110bb8}
+.app.is-fullscreen{width:100%;height:100%;max-width:none;background:#090b08}
+.app.is-fullscreen #toggle-clean{display:none}
+.app.is-immersive{position:fixed;inset:0;z-index:7;height:100vh;height:100dvh}
+.app.is-immersive .top{left:max(var(--side),env(safe-area-inset-left));right:max(var(--side),env(safe-area-inset-right))}
 .search-button{width:44px;height:44px;display:grid;place-items:center}
 .search-icon{border:2px solid currentColor;width:15px;height:15px;position:relative;border-radius:50%;margin:-3px 3px 0 0}
 .search-icon:after{content:"";width:8px;height:2px;background:currentColor;position:absolute;right:-6px;bottom:-3px;transform:rotate(45deg);border-radius:5px}

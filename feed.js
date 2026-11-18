@@ -2,7 +2,10 @@ import { coverUrl, sourceApi } from './source.js'
 import { filterAds } from './hls.js'
 
 const $ = id => document.getElementById(id)
+const app = document.querySelector('.app')
 const video = $('video')
+const fullscreenButton = $('toggle-fullscreen')
+const cleanButton = $('toggle-clean')
 const streamPicker = $('stream')
 const nativeHls = Boolean(video.canPlayType('application/vnd.apple.mpegurl'))
 const originalId = new URL(location.href).searchParams.get('id')
@@ -20,6 +23,8 @@ let posterRequest
 let posterBlob
 let swipe
 let wheelTime = -Infinity
+let cleanMode = false
+let fullscreenMode = ''
 
 function readSaved() {
   try {
@@ -86,6 +91,74 @@ function resetVideo() {
   $('play-mark').hidden = true
   $('progress').hidden = true
   $('progress').value = 0
+  updateViewMode()
+}
+
+function updateViewMode() {
+  const fullscreen = Boolean(fullscreenMode)
+  app.classList.toggle('is-cinema', cleanMode || fullscreen)
+  app.classList.toggle('is-fullscreen', fullscreen)
+  app.classList.toggle('is-immersive', fullscreenMode === 'immersive')
+  $('view-tools').hidden = !playing && !cleanMode && !fullscreen
+  cleanButton.setAttribute('aria-pressed', String(cleanMode))
+  cleanButton.textContent = cleanMode ? '恢复界面' : '清屏'
+  cleanButton.title = cleanMode ? '恢复标题和操作栏' : '隐藏标题和操作栏'
+  fullscreenButton.disabled = !playing && !fullscreen
+  fullscreenButton.setAttribute('aria-pressed', String(fullscreen))
+  fullscreenButton.textContent = fullscreen ? '退出全屏' : '全屏'
+}
+
+function setFullscreen(mode) {
+  fullscreenMode = mode
+  updateViewMode()
+}
+
+function syncDocumentFullscreen() {
+  if ((document.fullscreenElement || document.webkitFullscreenElement) === app) setFullscreen('browser')
+  else if (fullscreenMode === 'browser') setFullscreen('')
+}
+
+function openNativeFullscreen() {
+  if (!video.webkitSupportsFullscreen || typeof video.webkitEnterFullscreen !== 'function') return false
+  try {
+    video.webkitEnterFullscreen()
+    setFullscreen('native')
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function toggleFullscreen() {
+  if (fullscreenMode === 'immersive') return setFullscreen('')
+  if (fullscreenMode === 'native') {
+    video.webkitExitFullscreen?.()
+    return
+  }
+  if (fullscreenMode === 'browser') {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen
+    try {
+      await exit?.call(document)
+    } catch {
+      // The browser can close fullscreen before the requested exit is handled.
+    }
+    return
+  }
+  if (!playing) return
+
+  const request = app.requestFullscreen || app.webkitRequestFullscreen
+  // iPhone uses the native <video> fullscreen controller when element fullscreen is unavailable.
+  if (!app.requestFullscreen && openNativeFullscreen()) return
+  if (request) {
+    try {
+      await request.call(app)
+      syncDocumentFullscreen()
+      return
+    } catch {
+      // Web views may reject fullscreen, so try the native video player next.
+    }
+  }
+  if (!openNativeFullscreen()) setFullscreen('immersive')
 }
 
 async function play() {
@@ -148,6 +221,7 @@ function startStream(stream, nativeFallback = false) {
   video.hidden = false
   $('progress').hidden = false
   $('play-mark').hidden = false
+  updateViewMode()
   play()
 }
 
@@ -439,6 +513,12 @@ $('toggle-play').onclick = () => {
   if (video.paused) play()
   else video.pause()
 }
+cleanButton.onclick = () => { cleanMode = !cleanMode; updateViewMode() }
+fullscreenButton.onclick = toggleFullscreen
+document.addEventListener('fullscreenchange', syncDocumentFullscreen)
+document.addEventListener('webkitfullscreenchange', syncDocumentFullscreen)
+video.addEventListener('webkitbeginfullscreen', () => setFullscreen('native'))
+video.addEventListener('webkitendfullscreen', () => { if (fullscreenMode === 'native') setFullscreen('') })
 video.addEventListener('playing', () => { $('play-mark').hidden = true })
 video.addEventListener('pause', () => { if (playing) $('play-mark').hidden = false })
 video.addEventListener('error', () => { if (playing) playbackFailed(playing) })
@@ -477,7 +557,12 @@ playbackSurface.addEventListener('wheel', event => {
   move(event.deltaY > 0 ? 1 : -1)
 }, { passive: true })
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !$('overlay').hidden) closeSheet()
+  if (event.key === 'Escape') {
+    if (!$('overlay').hidden) closeSheet()
+    else if (fullscreenMode === 'immersive') setFullscreen('')
+    else if (!fullscreenMode && cleanMode) { cleanMode = false; updateViewMode() }
+    return
+  }
   if (event.target.closest?.('input,select,button') || !$('overlay').hidden) return
   if (event.key === 'ArrowDown') move(1)
   if (event.key === 'ArrowUp') move(-1)

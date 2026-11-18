@@ -9,9 +9,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https:; img-src 'self' https: blob:; media-src https: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./feed.css">
+  <link rel="stylesheet" href="./feed.css?v=2">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js" defer></script>
-  <script type="module" src="./feed.js"></script>
+  <script type="module" src="./feed.js?v=2"></script>
 </head>
 <body>
   <main class="app">
@@ -25,7 +25,13 @@
           <button type="button" data-source="rank:hot" aria-pressed="false">热播</button>
           <button type="button" data-source="latest" aria-pressed="false">上新</button>
         </nav>
-        <button class="search-button" id="search-button" type="button" aria-label="搜索"><span class="search-icon" aria-hidden="true"></span></button>
+        <div class="top-tools">
+          <button class="search-button" id="search-button" type="button" aria-label="搜索"><span class="search-icon" aria-hidden="true"></span></button>
+          <div class="view-tools" id="view-tools" hidden>
+            <button id="toggle-clean" type="button" aria-pressed="false">清屏</button>
+            <button id="toggle-fullscreen" type="button" aria-pressed="false">全屏</button>
+          </div>
+        </div>
       </header>
       <button id="toggle-play" class="player-surface" type="button" aria-label="播放或暂停" hidden><span id="play-mark" hidden aria-hidden="true">▶</span></button>
       <section class="status" id="status" aria-live="polite">
