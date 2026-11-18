@@ -9,9 +9,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https:; img-src 'self' https: blob:; media-src https: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./feed.css?v=4">
+  <link rel="stylesheet" href="./feed.css?v=5">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js" defer></script>
-  <script type="module" src="./feed.js?v=4"></script>
+  <script type="module" src="./feed.js?v=5"></script>
 </head>
 <body>
   <main class="app">
@@ -70,7 +70,6 @@
         <button type="button" data-category="all" aria-pressed="true">全部</button>
       </nav>
       <label id="stream-label" class="option" hidden>播放线路<select id="stream"></select></label>
-      <label id="filter-label" class="option" hidden>过滤有标记的 HLS 广告<input id="filter" type="checkbox" checked></label>
       <div id="results" class="results"></div>
       <button id="more" type="button" hidden>加载更多</button>
     </section>

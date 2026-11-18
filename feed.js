@@ -1,5 +1,4 @@
 import { coverUrl, sourceApi } from './source.js?v=3'
-import { filterAds } from './hls.js'
 
 const $ = id => document.getElementById(id)
 const app = document.querySelector('.app')
@@ -197,41 +196,21 @@ function playbackFailed(target) {
   message('这条线路暂时无法播放。可重试，或在选集中切换线路。', '重试播放', () => selectEpisode(episode.id))
 }
 
-function startStream(stream, nativeFallback = false) {
+function startStream(stream) {
   resetVideo()
   $('status').hidden = true
   if (!stream) return message('该分集暂未提供线路。', '重试播放', () => selectEpisode(episode.id))
   const target = playing = stream
-  const Hls = globalThis.Hls
-  const hlsSupported = stream.format === 'hls' && Boolean(Hls?.isSupported())
-  const filterEnabled = $('filter').checked && !nativeFallback
-  if (stream.format === 'hls' && (!nativeHls || (filterEnabled && hlsSupported))) {
-    if (!hlsSupported) {
+  if (stream.format === 'hls' && !nativeHls) {
+    const Hls = globalThis.Hls
+    if (!Hls?.isSupported()) {
       resetVideo()
       return message('当前浏览器无法加载 HLS。', '重试播放', () => selectEpisode(episode.id))
     }
-    const options = {}
-    if (filterEnabled) {
-      options.pLoader = class FilteredPlaylistLoader extends Hls.DefaultConfig.loader {
-        load(context, config, callbacks) {
-          super.load(context, config, {
-            ...callbacks,
-            onSuccess(response, ...rest) {
-              if (typeof response.data === 'string') response.data = filterAds(response.data)
-              callbacks.onSuccess(response, ...rest)
-            },
-          })
-        }
-      }
-    }
     video.disableRemotePlayback = true
-    hls = new Hls(options)
+    hls = new Hls()
     hls.on(Hls.Events.ERROR, (_, error) => {
-      if (!error.fatal || target !== playing) return
-      if (nativeHls) {
-        toast('已切换到系统播放，当前线路未启用广告过滤。')
-        startStream(stream, true)
-      } else playbackFailed(target)
+      if (error.fatal) playbackFailed(target)
     })
     hls.loadSource(stream.url)
     hls.attachMedia(video)
@@ -260,7 +239,7 @@ function showInfo(item) {
   poster(item.cover)
 }
 
-async function selectEpisode(id, preferredLabel) {
+async function selectEpisode(id) {
   if (!detail) return
   const next = detail.episodes.find(item => item.id === id && !item.locked)
   if (!next) return
@@ -277,11 +256,10 @@ async function selectEpisode(id, preferredLabel) {
     if (request.signal.aborted) return
     streams = result
     streamPicker.replaceChildren(...streams.map((stream, i) => new Option(stream.label, i)))
-    streamPicker.value = String(Math.max(0, streams.findIndex(stream => stream.label === preferredLabel)))
     if (sheetMode === 'episodes') showEpisodes()
-    startStream(streams[Number(streamPicker.value)])
+    startStream(streams[0])
   } catch (error) {
-    if (!request.signal.aborted) message(error.message, '重试播放', () => selectEpisode(id, preferredLabel))
+    if (!request.signal.aborted) message(error.message, '重试播放', () => selectEpisode(id))
   }
 }
 
@@ -378,7 +356,6 @@ function sheet(title, mode) {
   $('search-form').hidden = mode !== 'library'
   categoryPicker.hidden = mode !== 'library'
   $('stream-label').hidden = true
-  $('filter-label').hidden = true
   $('more').hidden = true
   $('results').replaceChildren()
   $('close').focus()
@@ -409,7 +386,6 @@ function itemButton(name, action) {
 function showEpisodes() {
   if (sheetMode !== 'episodes') sheet('分集与设置', 'episodes')
   $('stream-label').hidden = streams.length < 2
-  $('filter-label').hidden = false
   if (!detail) return resultMessage('正在载入分集…')
   if (!detail.episodes.length) return resultMessage('暂无分集。')
   $('results').replaceChildren(...detail.episodes.map(item => {
@@ -548,7 +524,6 @@ categoryPicker.onclick = event => {
 $('more').onclick = () => searchPage && findTitles(searchQuery, true)
 $('episodes').onclick = $('episode-bar').onclick = showEpisodes
 $('stream').onchange = () => startStream(streams[Number(streamPicker.value)])
-$('filter').onchange = () => episode && selectEpisode(episode.id, streams[Number(streamPicker.value)]?.label)
 $('favorite').onclick = () => {
   if (!current) return
   const id = current.id
@@ -638,8 +613,3 @@ document.addEventListener('keydown', event => {
   if (event.key === 'ArrowRight' && canSeek()) seekTo(video.currentTime + 10)
 })
 if (consent) enter()
-if (nativeHls && !globalThis.Hls?.isSupported()) {
-  $('filter').checked = false
-  $('filter').disabled = true
-  $('filter-label').firstChild.textContent = '系统播放暂不支持广告标记过滤'
-}
