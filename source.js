@@ -55,6 +55,10 @@ function httpsUrl(value) {
 
 export async function sourceApi(path, params, signal) {
   const ctx = { signal }
+  if (path === 'categories') {
+    const categories = await plugin.catalog.getCategories({}, ctx)
+    return categories.filter(({ id }) => id === 'all' || idPattern.test(id)).map(({ id, label }) => ({ id, label }))
+  }
   if (path === 'list') {
     const query = String(params.q || '').slice(0, 100).trim()
     const cursor = String(params.page || '1')

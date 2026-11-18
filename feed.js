@@ -1,4 +1,4 @@
-import { coverUrl, sourceApi } from './source.js'
+import { coverUrl, sourceApi } from './source.js?v=3'
 import { filterAds } from './hls.js'
 
 const $ = id => document.getElementById(id)
@@ -6,6 +6,7 @@ const app = document.querySelector('.app')
 const video = $('video')
 const fullscreenButton = $('toggle-fullscreen')
 const cleanButton = $('toggle-clean')
+const categoryPicker = $('library-categories')
 const streamPicker = $('stream')
 const nativeHls = Boolean(video.canPlayType('application/vnd.apple.mpegurl'))
 const originalId = new URL(location.href).searchParams.get('id')
@@ -18,6 +19,9 @@ let sheetRun = 0
 let sheetMode = ''
 let searchPage = null
 let searchQuery = ''
+let libraryCategory = 'all'
+let libraryItems = []
+let categoryRequest
 let toastTimer
 let posterRequest
 let posterBlob
@@ -355,6 +359,7 @@ function sheet(title, mode) {
   $('overlay').hidden = false
   $('sheet-title').textContent = title
   $('search-form').hidden = mode !== 'library'
+  categoryPicker.hidden = mode !== 'library'
   $('stream-label').hidden = true
   $('filter-label').hidden = true
   $('more').hidden = true
@@ -405,18 +410,20 @@ async function findTitles(query, append = false) {
   const run = ++sheetRun
   const page = append ? searchPage : 1
   searchQuery = query
-  if (!append) resultMessage('正在搜索…')
+  if (!append) {
+    libraryItems = []
+    searchPage = null
+    resultMessage(query ? '正在搜索…' : '正在载入短剧…')
+  }
   $('more').hidden = true
   try {
-    const data = await api('list', { q: query, page })
+    const data = await api('list', { q: query, category: libraryCategory, page })
     if (run !== sheetRun) return
-    if (!append) $('results').replaceChildren()
-    if (!data.items.length && !append) resultMessage('没有找到短剧。')
-    else $('results').append(...data.items.map(item => itemButton(item.title, () => {
-      closeSheet()
-      openTitle(item)
-    })))
+    libraryItems.push(...data.items)
     searchPage = data.next
+    if (!append) $('results').replaceChildren()
+    if (!data.items.length && !append) resultMessage(query ? '没有找到短剧。' : '这个分类暂无短剧。')
+    else $('results').append(...data.items.map(item => itemButton(item.title, () => openLibraryTitle(item))))
     $('more').hidden = !searchPage
   } catch (error) {
     if (run !== sheetRun) return
@@ -427,10 +434,46 @@ async function findTitles(query, append = false) {
   }
 }
 
+function openLibraryTitle(item) {
+  closeSheet()
+  if (!searchQuery) {
+    feed.run++
+    feed.source = libraryCategory
+    feed.items = libraryItems.slice()
+    feed.index = feed.items.findIndex(title => title.id === item.id)
+    feed.next = searchPage
+    updateTabs()
+  }
+  openTitle(item)
+}
+
+function updateLibraryCategory(id) {
+  libraryCategory = id
+  for (const button of categoryPicker.querySelectorAll('button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.category === id))
+  }
+}
+
+function loadLibraryCategories() {
+  if (categoryRequest) return
+  categoryRequest = api('categories', {}).then(categories => {
+    categoryPicker.replaceChildren(...categories.map(({ id, label }) => {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.dataset.category = id
+      button.textContent = label
+      return button
+    }))
+    updateLibraryCategory(libraryCategory)
+  }).catch(() => { categoryRequest = null })
+}
+
 function library(focusSearch) {
   if (!consent) return
-  sheet('短剧片库', 'library')
+  sheet('分类片库', 'library')
   $('search').value = ''
+  loadLibraryCategories()
+  if (focusSearch) updateLibraryCategory('all')
   findTitles('')
   if (focusSearch) $('search').focus()
 }
@@ -474,7 +517,16 @@ $('close').onclick = closeSheet
 $('overlay').onclick = event => { if (event.target === $('overlay')) closeSheet() }
 $('search-form').onsubmit = event => {
   event.preventDefault()
-  findTitles($('search').value.trim())
+  const query = $('search').value.trim()
+  if (query) updateLibraryCategory('all')
+  findTitles(query)
+}
+categoryPicker.onclick = event => {
+  const id = event.target.closest('button[data-category]')?.dataset.category
+  if (!id || (id === libraryCategory && !searchQuery)) return
+  $('search').value = ''
+  updateLibraryCategory(id)
+  findTitles('')
 }
 $('more').onclick = () => searchPage && findTitles(searchQuery, true)
 $('episodes').onclick = $('episode-bar').onclick = showEpisodes
