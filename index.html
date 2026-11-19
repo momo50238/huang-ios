@@ -9,9 +9,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https:; img-src 'self' https: blob:; media-src https: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./feed.css?v=5">
+  <link rel="stylesheet" href="./feed.css?v=6">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js" defer></script>
-  <script type="module" src="./feed.js?v=6"></script>
+  <script type="module" src="./feed.js?v=7"></script>
 </head>
 <body>
   <main class="app">
@@ -20,6 +20,10 @@
       <video id="video" playsinline preload="metadata" hidden></video>
       <div class="shade" aria-hidden="true"></div>
       <header class="top">
+        <div class="watch-heading" id="watch-heading" hidden>
+          <button id="watch-back" type="button" aria-label="返回刷剧" title="返回刷剧"><span aria-hidden="true">‹</span></button>
+          <span id="watch-episode" class="watch-episode" aria-live="polite">选集</span>
+        </div>
         <nav id="sources" aria-label="推荐栏目">
           <button type="button" data-source="rank:recommend" aria-pressed="true">推荐</button>
           <button type="button" data-source="rank:hot" aria-pressed="false">热播</button>
@@ -29,6 +33,7 @@
           <button class="search-button" id="search-button" type="button" aria-label="搜索"><span class="search-icon" aria-hidden="true"></span></button>
           <div class="view-tools" id="view-tools" hidden>
             <button id="skip-forward" type="button" aria-label="快进 10 秒" title="快进 10 秒" disabled>+10 秒</button>
+            <button id="fullscreen-next" type="button" hidden>下一集</button>
             <button id="toggle-clean" type="button" aria-pressed="false">清屏</button>
             <button id="toggle-fullscreen" type="button" aria-pressed="false">全屏</button>
           </div>
@@ -52,7 +57,11 @@
         <h1 id="title"></h1>
         <p id="summary"></p>
       </div>
-      <button class="episode-bar" id="episode-bar" type="button" hidden><span id="episode-label"></span><span aria-hidden="true">›</span></button>
+      <div class="episode-row" id="episode-row" hidden>
+        <button class="episode-bar" id="episode-bar" type="button"><span id="episode-label"></span><span aria-hidden="true">›</span></button>
+        <button class="watch-entry" id="watch-entry" type="button">进入观看</button>
+        <button class="watch-entry" id="next-episode" type="button" hidden>下一集</button>
+      </div>
       <input id="progress" class="progress" type="range" min="0" max="1000" value="0" aria-label="播放进度" hidden>
     </section>
     <nav class="bottom" aria-label="主导航">

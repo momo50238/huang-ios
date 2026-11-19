@@ -30,6 +30,7 @@ let swipe
 let wheelTime = -Infinity
 let cleanMode = false
 let fullscreenMode = ''
+let watching = false
 
 function readSaved() {
   try {
@@ -101,6 +102,7 @@ function resetVideo() {
 
 function updateViewMode() {
   const fullscreen = Boolean(fullscreenMode)
+  app.classList.toggle('is-watch', watching)
   app.classList.toggle('is-cinema', cleanMode || fullscreen)
   app.classList.toggle('is-fullscreen', fullscreen)
   app.classList.toggle('is-immersive', fullscreenMode === 'immersive')
@@ -111,8 +113,33 @@ function updateViewMode() {
   cleanButton.title = cleanMode ? '恢复标题和操作栏' : '隐藏标题和操作栏'
   fullscreenButton.disabled = !playing && !fullscreen
   fullscreenButton.setAttribute('aria-pressed', String(fullscreen))
-  fullscreenButton.textContent = fullscreen ? '退出全屏' : '全屏'
+  fullscreenButton.textContent = fullscreen ? '退出全屏' : watching ? '全屏观看' : '全屏'
   updateSeekControls()
+  updateWatchControls()
+}
+
+function updateWatchControls() {
+  $('watch-heading').hidden = !watching
+  $('watch-episode').textContent = episode ? '第 ' + episode.label + ' 集' : '选集'
+  $('watch-entry').hidden = watching
+  const next = Boolean(adjacentEpisode(1))
+  $('next-episode').hidden = !watching
+  $('next-episode').disabled = !next
+  $('fullscreen-next').hidden = !watching || !(cleanMode || fullscreenMode)
+  $('fullscreen-next').disabled = !next
+}
+
+function enterWatch() {
+  watching = true
+  updateViewMode()
+}
+
+async function exitWatch() {
+  if (fullscreenMode) await toggleFullscreen()
+  watching = false
+  cleanMode = false
+  updateViewMode()
+  $('watch-entry').focus({ preventScroll: true })
 }
 
 function canSeek() {
@@ -167,18 +194,18 @@ async function toggleFullscreen() {
   if (!playing) return
 
   const request = app.requestFullscreen || app.webkitRequestFullscreen
-  // iPhone uses the native <video> fullscreen controller when element fullscreen is unavailable.
-  if (!app.requestFullscreen && openNativeFullscreen()) return
+  // Keep touch gestures available in the episode viewer by expanding the page as a unit.
+  if (!watching && !app.requestFullscreen && openNativeFullscreen()) return
   if (request) {
     try {
       await request.call(app)
       syncDocumentFullscreen()
       return
     } catch {
-      // Web views may reject fullscreen, so try the native video player next.
+      // A web view can reject element fullscreen. Fall back to an in-page layout.
     }
   }
-  if (!openNativeFullscreen()) setFullscreen('immersive')
+  if (watching || !openNativeFullscreen()) setFullscreen('immersive')
 }
 
 async function play() {
@@ -233,7 +260,7 @@ function showInfo(item) {
   current = item
   $('title').textContent = item.title
   $('summary').textContent = (item.description || '').replace(/<[^>]*>/g, '').slice(0, 200)
-  for (const id of ['actions', 'info', 'episode-bar', 'toggle-play']) $(id).hidden = false
+  for (const id of ['actions', 'info', 'episode-row', 'toggle-play']) $(id).hidden = false
   $('episode-label').textContent = item.title + (item.episodes?.length ? ' · 共 ' + item.episodes.length + ' 集' : '')
   refreshFavorite()
   poster(item.cover)
@@ -305,7 +332,7 @@ async function loadFeed(source) {
   updateTabs()
   resetVideo()
   poster(null)
-  for (const id of ['actions', 'info', 'episode-bar', 'toggle-play']) $(id).hidden = true
+  for (const id of ['actions', 'info', 'episode-row', 'toggle-play']) $(id).hidden = true
   message('正在载入短剧…')
   const isCurrent = () => !request.signal.aborted && run === feed.run && view === viewRun
   try {
@@ -359,6 +386,25 @@ async function move(step) {
   openTitle(feed.items[target])
 }
 
+function adjacentEpisode(step) {
+  if (!detail || !episode) return
+  const list = detail.episodes
+  const index = list.findIndex(item => item.id === episode.id)
+  if (index < 0) return
+  for (let i = index + step; i >= 0 && i < list.length; i += step) {
+    if (!list[i].locked) return list[i]
+  }
+}
+
+function navigate(step) {
+  if (!consent || !$('overlay').hidden) return
+  if (!watching) return move(step)
+  if (!episode) return
+  const next = adjacentEpisode(step)
+  if (next) return selectEpisode(next.id)
+  toast(step > 0 ? '已是最后一集' : '已是第一集')
+}
+
 function sheet(title, mode) {
   if (!consent) return
   sheetRun++
@@ -404,6 +450,7 @@ function showEpisodes() {
   $('results').replaceChildren(...detail.episodes.map(item => {
     const button = itemButton('第 ' + item.label + ' 集', () => {
       closeSheet()
+      enterWatch()
       selectEpisode(item.id)
     })
     button.disabled = Boolean(item.locked)
@@ -450,6 +497,7 @@ function openLibraryTitle(item) {
     feed.next = searchPage
     updateTabs()
   }
+  enterWatch()
   openTitle(item)
 }
 
@@ -490,12 +538,14 @@ function savedTitles() {
   if (!saved.length) return resultMessage('收藏的作品会显示在这里。')
   $('results').append(...saved.map(item => itemButton(item.title, () => {
     closeSheet()
+    enterWatch()
     openTitle(item)
   })))
 }
 
 function enter() {
   if (originalId && /^\d{1,12}$/.test(originalId)) {
+    enterWatch()
     openTitle({ id: originalId, title: '正在打开短剧' }, preference)
   } else loadFeed('rank:recommend')
 }
@@ -536,6 +586,13 @@ categoryPicker.onclick = event => {
 }
 $('more').onclick = () => searchPage && findTitles(searchQuery, true)
 $('episodes').onclick = $('episode-bar').onclick = showEpisodes
+$('watch-entry').onclick = () => {
+  enterWatch()
+  $('watch-back').focus({ preventScroll: true })
+  if (playing && video.paused) play()
+}
+$('watch-back').onclick = exitWatch
+$('next-episode').onclick = $('fullscreen-next').onclick = () => navigate(1)
 $('stream').onchange = () => startStream(streams[Number(streamPicker.value)])
 $('favorite').onclick = () => {
   if (!current) return
@@ -587,12 +644,12 @@ video.addEventListener('loadedmetadata', updateSeekControls)
 video.addEventListener('durationchange', updateSeekControls)
 $('progress').oninput = () => seekTo(Number($('progress').value) * video.duration / 1000)
 video.addEventListener('ended', () => {
-  const index = detail?.episodes.findIndex(item => item.id === episode?.id) ?? -1
-  const next = index < 0 ? null : detail.episodes.slice(index + 1).find(item => !item.locked)
+  const next = adjacentEpisode(1)
   if (next) selectEpisode(next.id)
 })
 playbackSurface.addEventListener('touchstart', event => {
-  if (event.touches.length !== 1 || event.target.closest('input,aside,header,.episode-bar,.status')) return
+  swipe = null
+  if (event.touches.length !== 1 || event.target.closest('input,aside,header,.episode-row,.status')) return
   const point = event.touches[0]
   swipe = { x: point.clientX, y: point.clientY }
 }, { passive: true })
@@ -605,24 +662,25 @@ playbackSurface.addEventListener('touchend', event => {
   swipe = null
   if (Math.abs(dy) > 55 && Math.abs(dy) > Math.abs(dx) * 1.3) {
     wheelTime = performance.now()
-    move(dy < 0 ? 1 : -1)
+    navigate((watching ? dy > 0 : dy < 0) ? 1 : -1)
   }
 }, { passive: true })
 playbackSurface.addEventListener('wheel', event => {
   if (Math.abs(event.deltaY) < 8 || performance.now() - wheelTime < 500) return
   wheelTime = performance.now()
-  move(event.deltaY > 0 ? 1 : -1)
+  navigate(event.deltaY > 0 ? 1 : -1)
 }, { passive: true })
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     if (!$('overlay').hidden) closeSheet()
     else if (fullscreenMode === 'immersive') setFullscreen('')
     else if (!fullscreenMode && cleanMode) { cleanMode = false; updateViewMode() }
+    else if (!fullscreenMode && watching) exitWatch()
     return
   }
   if (event.target.closest?.('input,select,button') || !$('overlay').hidden) return
-  if (event.key === 'ArrowDown') move(1)
-  if (event.key === 'ArrowUp') move(-1)
+  if (event.key === 'ArrowDown') navigate(1)
+  if (event.key === 'ArrowUp') navigate(-1)
   if (event.key === 'ArrowRight' && canSeek()) seekTo(video.currentTime + 10)
 })
 if (consent) enter()
