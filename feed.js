@@ -1,4 +1,4 @@
-import { coverUrl, sourceApi } from './source.js?v=3'
+import { coverUrl, sourceApi } from './source.js?v=4'
 
 const $ = id => document.getElementById(id)
 const app = document.querySelector('.app')
@@ -294,6 +294,7 @@ function updateTabs() {
 
 async function loadFeed(source) {
   pending?.abort()
+  const request = pending = new AbortController()
   const run = ++feed.run
   const view = ++viewRun
   feed.source = source
@@ -306,9 +307,21 @@ async function loadFeed(source) {
   poster(null)
   for (const id of ['actions', 'info', 'episode-bar', 'toggle-play']) $(id).hidden = true
   message('正在载入短剧…')
+  const isCurrent = () => !request.signal.aborted && run === feed.run && view === viewRun
   try {
-    const data = await api('list', { category: source === 'latest' ? 'all' : source, sort: 'latest', page: 1 })
-    if (run !== feed.run || view !== viewRun) return
+    let data
+    try {
+      data = await api('list', { category: source === 'latest' ? 'all' : source, sort: 'latest', page: 1 }, request.signal)
+    } catch (error) {
+      if (!isCurrent()) return
+      if (!source.startsWith('rank:') || error.code === 'OFFLINE') throw error
+      message('榜单暂时无法载入，正在尝试上新…')
+      data = await api('list', { category: 'all', sort: 'latest', page: 1 }, request.signal)
+      if (!isCurrent()) return
+      feed.source = 'latest'
+      updateTabs()
+    }
+    if (!isCurrent()) return
     feed.items = data.items
     feed.next = data.next
     if (data.items.length) {
@@ -316,7 +329,7 @@ async function loadFeed(source) {
       openTitle(data.items[0])
     } else message('此栏目暂无短剧。', '重试加载', () => loadFeed(source))
   } catch (error) {
-    if (run === feed.run && view === viewRun) message(error.message, '重试加载', () => loadFeed(source))
+    if (isCurrent()) message(error.message, '重试加载', () => loadFeed(source))
   }
 }
 

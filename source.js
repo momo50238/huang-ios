@@ -3,6 +3,7 @@ import createPlugin from './huangguo.js'
 const origin = 'https://huangguoai.com'
 const idPattern = /^\d{1,12}$/
 const imageLimit = 8 * 1024 * 1024
+const retryableStatus = new Set([408, 500, 502, 503, 504])
 
 class SourceError extends Error {
   constructor(code, message) {
@@ -20,28 +21,42 @@ const plugin = createPlugin({
       if (url.origin !== origin) throw new Error('播放源地址无效')
       for (const [name, value] of Object.entries(request.query || {})) url.searchParams.set(name, value)
 
-      const controller = new AbortController()
-      const abort = () => controller.abort()
-      if (request.signal?.aborted) abort()
-      request.signal?.addEventListener('abort', abort, { once: true })
-      const timeout = setTimeout(abort, request.timeoutMs)
-      try {
-        const response = await fetch(url.href, {
-          method: request.method,
-          // The source accepts an empty form as the empty playback payload.
-          body: request.method === 'POST' ? new URLSearchParams() : undefined,
-          credentials: 'omit',
-          redirect: 'error',
-          signal: controller.signal,
-        })
-        const data = await response.json().catch(() => null)
-        return { ok: response.ok, status: response.status, data }
-      } catch (error) {
-        if (request.signal?.aborted) throw error
-        throw new SourceError('UPSTREAM_ERROR', '暂时无法连接黄果播放源，请稍后重试。')
-      } finally {
-        clearTimeout(timeout)
-        request.signal?.removeEventListener('abort', abort)
+      const attempts = request.method === 'GET' ? 2 : 1
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        const controller = new AbortController()
+        const abort = () => controller.abort()
+        if (request.signal?.aborted) abort()
+        request.signal?.addEventListener('abort', abort, { once: true })
+        const timeout = setTimeout(abort, request.timeoutMs / attempts)
+        try {
+          const response = await fetch(url.href, {
+            method: request.method,
+            // The source accepts an empty form as the empty playback payload.
+            body: request.method === 'POST' ? new URLSearchParams() : undefined,
+            cache: attempt === 1 ? 'default' : 'reload',
+            credentials: 'omit',
+            redirect: 'error',
+            signal: controller.signal,
+          })
+          if (attempt < attempts && retryableStatus.has(response.status)) {
+            await response.body?.cancel()
+            continue
+          }
+          const data = await response.json().catch(error => {
+            if (controller.signal.aborted) throw error
+            return null
+          })
+          return { ok: response.ok, status: response.status, data }
+        } catch (error) {
+          if (request.signal?.aborted) throw error
+          if (globalThis.navigator?.onLine === false) throw new SourceError('OFFLINE', '当前设备未联网。连接网络后请重试。')
+          if (attempt < attempts) continue
+          if (controller.signal.aborted) throw new SourceError('TIMEOUT', '黄果播放源响应超时。请稍后重试。')
+          throw new SourceError('UPSTREAM_ERROR', '当前网络无法连接黄果播放源。请换一个网络后重试。')
+        } finally {
+          clearTimeout(timeout)
+          request.signal?.removeEventListener('abort', abort)
+        }
       }
     },
   },
