@@ -119,8 +119,13 @@ function updateViewMode() {
 }
 
 function updateWatchControls() {
+  const episodeText = episode ? '第 ' + episode.label + ' 集' : ''
+  const count = detail?.episodes.length
+  const totalText = count ? '共 ' + count + ' 集' : ''
   $('watch-heading').hidden = !watching
-  $('watch-episode').textContent = episode ? '第 ' + episode.label + ' 集' : '选集'
+  $('watch-episode').textContent = episodeText || '选集'
+  $('episode-label').textContent = (watching ? ['选集', totalText] : [current?.title, episodeText || totalText])
+    .filter(Boolean).join(' · ')
   $('watch-entry').hidden = watching
   const next = Boolean(adjacentEpisode(1))
   $('next-episode').hidden = !watching
@@ -261,7 +266,7 @@ function showInfo(item) {
   $('title').textContent = item.title
   $('summary').textContent = (item.description || '').replace(/<[^>]*>/g, '').slice(0, 200)
   for (const id of ['actions', 'info', 'episode-row', 'toggle-play']) $(id).hidden = false
-  $('episode-label').textContent = item.title + (item.episodes?.length ? ' · 共 ' + item.episodes.length + ' 集' : '')
+  updateWatchControls()
   refreshFavorite()
   poster(item.cover)
 }
@@ -275,7 +280,6 @@ async function selectEpisode(id) {
   const request = pending = new AbortController()
   episode = next
   streams = []
-  $('episode-label').textContent = detail.title + ' · 第 ' + episode.label + ' 集'
   resetVideo()
   message('正在加载第 ' + episode.label + ' 集…')
   try {
